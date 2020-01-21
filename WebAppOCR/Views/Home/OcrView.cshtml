@@ -1,0 +1,31 @@
+﻿@model WebAppOCR.Models.Image
+
+@{
+    ViewData["Title"] = "OCR Result";
+}
+
+<h2>OCR 結果</h2>
+
+<div style="margin-top: 16px; margin-bottom: 16px">
+    <table>
+        <tr>
+            <td>【@Html.DisplayNameFor(model => model.ImageUrl)】</td>
+            <td>【@Html.DisplayNameFor(model => model.Result)】</td>
+        </tr>
+        <tr>
+            <td>
+                <div style="margin-right: 32px">
+                    <a href="@Html.DisplayFor(model => model.ImageUrl)">
+                        <img src="@Html.DisplayFor(model => model.ImageUrl)" alt="srcImage" width="350" />
+                    </a>
+                </div>
+            </td>
+            <td>
+                <div style="font-size: 20px">@Html.DisplayFor(model => model.Result)</div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div>
+    <a asp-action="Ocr">OCR へ戻る</a>
+</div>

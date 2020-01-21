@@ -1,0 +1,27 @@
+﻿@model WebAppOCR.Models.Image
+
+@{
+    ViewData["Title"] = "Noodle Result";
+}
+
+<h2>判別結果</h2>
+
+<div style="margin-top: 16px; margin-bottom: 16px">
+    <table>
+        <tr>
+            <td>
+                <div style="margin-right: 32px">
+                    <a href="@Html.DisplayFor(model => model.ImageUrl)">
+                        <img src="@Html.DisplayFor(model => model.ImageUrl)" alt="srcImage" width="350" />
+                    </a>
+                </div>
+            </td>
+            <td>
+                <div style="font-size: 32px">@Html.DisplayFor(model => model.Result)</div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div>
+    <a asp-action="Noodle">Noodle 判別へ戻る</a>
+</div>
