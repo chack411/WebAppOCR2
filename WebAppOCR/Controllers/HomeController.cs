@@ -17,7 +17,6 @@ namespace WebAppOCR.Controllers
 
             foreach (var item in names)
             {
-                
             }
 
             return View();

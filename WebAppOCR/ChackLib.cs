@@ -152,7 +152,10 @@ namespace ChackLib
             foreach (Prediction prediction in NoodleData.Predictions)
             {
                 if (prediction.Probability > result.Probability)
+                {
                     result = prediction;
+                    // result.TagName = "Jiro"; // for debug.
+                }
             }
 
             return result;
