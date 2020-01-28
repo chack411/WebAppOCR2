@@ -17,6 +17,7 @@ variables:
   dockerfilePath: '**/Dockerfile'
   tag: '$(Build.BuildId)'
   imagePullSecret: 'akirainaksbf00-auth'
+  buildcontext: ''
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -37,6 +38,7 @@ stages:
         command: buildAndPush
         repository: $(imageRepository)
         dockerfile: $(dockerfilePath)
+        buildContext: ''
         containerRegistry: $(dockerRegistryServiceConnection)
         tags: |
           $(tag)
