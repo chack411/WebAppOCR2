@@ -5,6 +5,9 @@
 trigger:
 - master
 
+pr:
+- master
+
 resources:
 - repo: self
 
@@ -37,6 +40,7 @@ stages:
         command: buildAndPush
         repository: $(imageRepository)
         dockerfile: $(dockerfilePath)
+        buildContext: ''
         containerRegistry: $(dockerRegistryServiceConnection)
         tags: |
           $(tag)
