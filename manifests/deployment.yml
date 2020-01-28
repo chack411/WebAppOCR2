@@ -1,0 +1,16 @@
+apiVersion : apps/v1beta1
+kind: Deployment
+metadata:
+  name: chackwebappocr 
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: chackwebappocr 
+    spec:
+      containers:
+        - name: chackwebappocr 
+          image: akirainaks.azurecr.io/chackwebappocr
+          ports:
+          - containerPort: 80
