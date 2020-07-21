@@ -28,3 +28,14 @@ spec:
           limits:
             cpu: 500m
         imagePullPolicy: Always
+        env:
+        - name: Noodle_Prediction_Key
+          valueFrom:
+            secretKeyRef:
+              name: cogapi-secret
+              key: Noodle_Prediction_Key
+        - name: Vision_API_Subscription_Key
+          valueFrom:
+            secretKeyRef:
+              name: cogapi-secret
+              key: Vision_API_Subscription_Key

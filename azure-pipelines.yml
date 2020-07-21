@@ -60,7 +60,7 @@ stages:
     displayName: Deploy
     pool:
       vmImage: $(vmImageName)
-    environment: 'chack411WebAppOCR2.ocr'
+    environment: 'chack411WebAppOCR2.$(k8sNamespace)'
     strategy:
       runOnce:
         deploy:
