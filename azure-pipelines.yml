@@ -17,22 +17,22 @@ variables:
   dockerfilePath: '**/Dockerfile'
   tag: '$(Build.BuildId)'
   buildcontext: ''
-  imagePullSecret: 'akirainaks1892160c-auth'
+
+  # Kubernetes Namespace
+  k8sNamespace: 'ocr'
+  k8sNamespaceForPR: 'ocr-pr'
+  # k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
+  imagePullSecret: 'akirainaks-acr-auth'
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
 
-  # Name of the new namespace being created to deploy the PR changes.
-  k8sNamespace: 'ocr'
-  k8sNamespaceForPR: 'ocr-pr'
-  # k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
-
 stages:
 - stage: Build
-  displayName: Build stage
+  displayName: 'Build stage'
   jobs:  
   - job: Build
-    displayName: Build
+    displayName: 'Build Docker Container'
     pool:
       vmImage: $(vmImageName)
     steps:
@@ -51,13 +51,12 @@ stages:
       artifact: manifests
 
 - stage: Deploy
-  displayName: Deploy stage
+  displayName: 'Deploy stage'
   dependsOn: Build
-
   jobs:
   - deployment: Deploy
+    displayName: 'Deploy to AKS'
     condition: and(succeeded(), not(startsWith(variables['Build.SourceBranch'], 'refs/pull/')))
-    displayName: Deploy
     pool:
       vmImage: $(vmImageName)
     environment: 'chack411WebAppOCR2.$(k8sNamespace)'
@@ -66,14 +65,14 @@ stages:
         deploy:
           steps:
           - task: KubernetesManifest@0
-            displayName: Create imagePullSecret
+            displayName: 'Create imagePullSecret'
             inputs:
               action: createSecret
               namespace: $(k8sNamespace)
               secretName: $(imagePullSecret)
               dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
           - task: KubernetesManifest@0
-            displayName: Create secret
+            displayName: 'Create secret'
             inputs: 
               action: createSecret
               namespace: $(k8sNamespace)
@@ -81,7 +80,7 @@ stages:
               secretName: cogapi-secret
               secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
           - task: KubernetesManifest@0
-            displayName: Deploy to Kubernetes cluster
+            displayName: 'Deploy to Kubernetes cluster'
             inputs:
               action: deploy
               namespace: $(k8sNamespace)
@@ -94,7 +93,7 @@ stages:
                 $(containerRegistry)/$(imageRepository):$(tag)
 
   - deployment: DeployPullRequest
-    displayName: Deploy Pull request
+    displayName: 'Deploy Pull request'
     condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/pull/'))
     pool:
       vmImage: $(vmImageName)
@@ -111,16 +110,15 @@ stages:
               command: apply
               useConfigurationFile: true
               inline: '{ "kind": "Namespace", "apiVersion": "v1", "metadata": { "name": "$(k8sNamespaceForPR)" }}'
-
           - task: KubernetesManifest@0
-            displayName: Create imagePullSecret
+            displayName: 'Create imagePullSecret'
             inputs:
               action: createSecret
               namespace: $(k8sNamespaceForPR)
               secretName: $(imagePullSecret)
               dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
           - task: KubernetesManifest@0
-            displayName: Create secret
+            displayName: 'Create secret'
             inputs: 
               action: createSecret
               namespace: $(k8sNamespaceForPR)
@@ -128,7 +126,7 @@ stages:
               secretName: cogapi-secret
               secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
           - task: KubernetesManifest@0
-            displayName: Deploy to the new namespace in the Kubernetes cluster
+            displayName: 'Deploy to the new namespace in the Kubernetes cluster'
             inputs:
               action: deploy
               namespace: $(k8sNamespaceForPR)
@@ -156,6 +154,23 @@ stages:
               message="Your review app has been deployed"
               if [ ! -z "$url" -a "$url" != "http://:" ] 
               then
-                message="${message} and is available at $url.<br><br>[Learn More](https://aka.ms/testwithreviewapps) about how to test and provide feedback for the app."
+                message="${message} and is available at $url"
               fi
               echo "##vso[task.setvariable variable=GITHUB_COMMENT]$message"
+
+- stage: Deploy_Production
+  displayName: 'Deploy to Production'
+  dependsOn: Deploy
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+  jobs:
+  - deployment: Deploy_Production
+    displayName: 'Deploy to AKS'
+    pool:
+      vmImage: $(vmImageName)
+    environment: 'chack411WebAppOCR2-Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: echo Deploy to Production cluster...
+            displayName: 'Deploy to Production cluster'
