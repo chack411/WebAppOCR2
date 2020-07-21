@@ -1,0 +1,161 @@
+# Deploy to Azure Kubernetes Service
+# Build and push image to Azure Container Registry; Deploy to Azure Kubernetes Service
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- master
+
+resources:
+- repo: self
+
+variables:
+
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'e51ce03c-a172-40b0-b80d-b31692c4d488'
+  imageRepository: 'chackwebappocr'
+  containerRegistry: 'akirainaks.azurecr.io'
+  dockerfilePath: '**/Dockerfile'
+  tag: '$(Build.BuildId)'
+  buildcontext: ''
+  imagePullSecret: 'akirainaks1892160c-auth'
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+  # Name of the new namespace being created to deploy the PR changes.
+  k8sNamespace: 'ocr'
+  k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
+
+stages:
+- stage: Build
+  displayName: Build stage
+  jobs:  
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push an image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        buildContext: $(buildcontext)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          
+    - upload: manifests
+      artifact: manifests
+
+- stage: Deploy
+  displayName: Deploy stage
+  dependsOn: Build
+
+  jobs:
+  - deployment: Deploy
+    condition: and(succeeded(), not(startsWith(variables['Build.SourceBranch'], 'refs/pull/')))
+    displayName: Deploy
+    pool:
+      vmImage: $(vmImageName)
+    environment: 'chack411WebAppOCR2.ocr'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: KubernetesManifest@0
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              namespace: $(k8sNamespace)
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+          - task: KubernetesManifest@0
+            displayName: Create secret
+            inputs: 
+              action: createSecret
+              namespace: $(k8sNamespace)
+              secretType: generic
+              secretName: cogapi-secret
+              secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
+          - task: KubernetesManifest@0
+            displayName: Deploy to Kubernetes cluster
+            inputs:
+              action: deploy
+              namespace: $(k8sNamespace)
+              manifests: |
+                $(Pipeline.Workspace)/manifests/deployment.yml
+                $(Pipeline.Workspace)/manifests/service.yml
+              imagePullSecrets: |
+                $(imagePullSecret)
+              containers: |
+                $(containerRegistry)/$(imageRepository):$(tag)
+
+  - deployment: DeployPullRequest
+    displayName: Deploy Pull request
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/pull/'))
+    pool:
+      vmImage: $(vmImageName)
+      
+    environment: 'chack411WebAppOCR2.$(k8sNamespaceForPR)'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - reviewApp: $(k8sNamespace)
+
+          - task: Kubernetes@1
+            displayName: 'Create a new namespace for the pull request'
+            inputs:
+              command: apply
+              useConfigurationFile: true
+              inline: '{ "kind": "Namespace", "apiVersion": "v1", "metadata": { "name": "$(k8sNamespaceForPR)" }}'
+
+          - task: KubernetesManifest@0
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              namespace: $(k8sNamespaceForPR)
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+          - task: KubernetesManifest@0
+            displayName: Create secret
+            inputs: 
+              action: createSecret
+              namespace: $(k8sNamespaceForPR)
+              secretType: generic
+              secretName: cogapi-secret
+              secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
+          - task: KubernetesManifest@0
+            displayName: Deploy to the new namespace in the Kubernetes cluster
+            inputs:
+              action: deploy
+              namespace: $(k8sNamespaceForPR)
+              manifests: |
+                $(Pipeline.Workspace)/manifests/deployment.yml
+                $(Pipeline.Workspace)/manifests/service.yml
+              imagePullSecrets: |
+                $(imagePullSecret)
+              containers: |
+                $(containerRegistry)/$(imageRepository):$(tag)
+          
+          - task: Kubernetes@1
+            name: get
+            displayName: 'Get services in the new namespace'
+            continueOnError: true
+            inputs:
+              command: get
+              namespace: $(k8sNamespaceForPR)
+              arguments: svc
+              outputFormat: jsonpath='http://{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'
+              
+          # Getting the IP of the deployed service and writing it to a variable for posing comment
+          - script: |
+              url="$(get.KubectlOutput)"
+              message="Your review app has been deployed"
+              if [ ! -z "$url" -a "$url" != "http://:" ] 
+              then
+                message="${message} and is available at $url.<br><br>[Learn More](https://aka.ms/testwithreviewapps) about how to test and provide feedback for the app."
+              fi
+              echo "##vso[task.setvariable variable=GITHUB_COMMENT]$message"
