@@ -51,12 +51,13 @@ stages:
       artifact: manifests
 
 - stage: Deploy
-  displayName: 'Deploy stage'
+  displayName: 'Deploy for Staging'
   dependsOn: Build
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
   jobs:
   - deployment: Deploy
     displayName: 'Deploy to AKS'
-    condition: and(succeeded(), not(startsWith(variables['Build.SourceBranch'], 'refs/pull/')))
+    # condition: and(succeeded(), not(startsWith(variables['Build.SourceBranch'], 'refs/pull/')))
     pool:
       vmImage: $(vmImageName)
     environment: 'chack411WebAppOCR2.$(k8sNamespace)'
@@ -92,9 +93,31 @@ stages:
               containers: |
                 $(containerRegistry)/$(imageRepository):$(tag)
 
+- stage: Deploy_Production
+  displayName: 'Deploy for Production'
+  dependsOn: Deploy
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+  jobs:
+  - deployment: Deploy_Production
+    displayName: 'Deploy to AKS'
+    pool:
+      vmImage: $(vmImageName)
+    environment: 'chack411WebAppOCR2-Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: echo Deploy to Production cluster...
+            displayName: 'Deploy to Production cluster'
+
+- stage: Deploy_PR
+  displayName: 'Deploy for PR'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
+  jobs:
   - deployment: DeployPullRequest
-    displayName: 'Deploy Pull request'
-    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/pull/'))
+    displayName: 'Deploy for Pull request'
+    # condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/pull/'))
     pool:
       vmImage: $(vmImageName)
     environment: 'chack411WebAppOCR2.$(k8sNamespaceForPR)'
@@ -103,7 +126,6 @@ stages:
         deploy:
           steps:
           - reviewApp: $(k8sNamespace)
-
           - task: Kubernetes@1
             displayName: 'Create a new namespace for the pull request'
             inputs:
@@ -157,20 +179,3 @@ stages:
                 message="${message} and is available at $url"
               fi
               echo "##vso[task.setvariable variable=GITHUB_COMMENT]$message"
-
-- stage: Deploy_Production
-  displayName: 'Deploy to Production'
-  dependsOn: Deploy
-  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
-  jobs:
-  - deployment: Deploy_Production
-    displayName: 'Deploy to AKS'
-    pool:
-      vmImage: $(vmImageName)
-    environment: 'chack411WebAppOCR2-Production'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - script: echo Deploy to Production cluster...
-            displayName: 'Deploy to Production cluster'
