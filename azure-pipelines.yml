@@ -24,7 +24,8 @@ variables:
 
   # Name of the new namespace being created to deploy the PR changes.
   k8sNamespace: 'ocr'
-  k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
+  k8sNamespaceForPR: 'ocr-pr'
+  # k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
 
 stages:
 - stage: Build
@@ -97,7 +98,6 @@ stages:
     condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/pull/'))
     pool:
       vmImage: $(vmImageName)
-      
     environment: 'chack411WebAppOCR2.$(k8sNamespaceForPR)'
     strategy:
       runOnce:
