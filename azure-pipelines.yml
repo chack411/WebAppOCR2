@@ -11,7 +11,7 @@ resources:
 variables:
 
   # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: 'e51ce03c-a172-40b0-b80d-b31692c4d488'
+  dockerRegistryServiceConnection: 'd008f4de-211d-40b0-9694-48fb4e0eca70'
   imageRepository: 'chackwebappocr'
   containerRegistry: 'akirainaks.azurecr.io'
   dockerfilePath: '**/Dockerfile'
