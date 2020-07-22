@@ -1,0 +1,33 @@
+parameters:
+- name: k8sNamespace
+  type: string
+  default: 'default'
+
+steps:
+- task: KubernetesManifest@0
+  displayName: 'Create imagePullSecret'
+  inputs:
+    action: createSecret
+    namespace: ${{ parameters.k8sNamespace }}
+    secretName: $(imagePullSecret)
+    dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+- task: KubernetesManifest@0
+  displayName: 'Create secret'
+  inputs: 
+    action: createSecret
+    namespace: ${{ parameters.k8sNamespace }}
+    secretType: generic
+    secretName: cogapi-secret
+    secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
+- task: KubernetesManifest@0
+  displayName: 'Deploy to Kubernetes cluster'
+  inputs:
+    action: deploy
+    namespace: ${{ parameters.k8sNamespace }}
+    manifests: |
+      $(Pipeline.Workspace)/manifests/deployment.yml
+      $(Pipeline.Workspace)/manifests/service.yml
+    imagePullSecrets: |
+      $(imagePullSecret)
+    containers: |
+      $(containerRegistry)/$(imageRepository):$(tag)
