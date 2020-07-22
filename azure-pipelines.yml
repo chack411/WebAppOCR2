@@ -99,8 +99,11 @@ stages:
       runOnce:
         deploy:
           steps:
+          # ReviewApp:
+          # https://devblogs.microsoft.com/devops/review-apps-in-azure-pipelines/
+          # https://docs.microsoft.com/en-in/azure/devops/pipelines/process/environments-kubernetes?view=azure-devops#setup-review-app
           # Issue with ReviewApp: https://github.com/MicrosoftDocs/azure-devops-docs/issues/7445
-          # - reviewApp: $(k8sNamespace)
+          - reviewApp: $(k8sNamespace)
 
           - task: Kubernetes@1
             displayName: 'Create a new namespace for the pull request'
