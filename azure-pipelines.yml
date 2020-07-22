@@ -20,8 +20,8 @@ variables:
 
   # Kubernetes Namespace
   k8sNamespace: 'ocr'
-  # k8sNamespaceForPR: 'ocr-pr'
-  k8sNamespaceForPR: 'ocr-pr-$(System.PullRequest.PullRequestId)'
+  k8sNamespaceForPR: 'ocr-pr'
+  # k8sNamespaceForPR: 'ocr-pr-$(System.PullRequest.PullRequestId)'
   imagePullSecret: 'akirainaks-acr-auth'
 
   # Agent VM image name
@@ -99,7 +99,8 @@ stages:
       runOnce:
         deploy:
           steps:
-          - reviewApp: $(k8sNamespace)
+          # Issue with ReviewApp: https://github.com/MicrosoftDocs/azure-devops-docs/issues/7445
+          # - reviewApp: $(k8sNamespace)
 
           - task: Kubernetes@1
             displayName: 'Create a new namespace for the pull request'
