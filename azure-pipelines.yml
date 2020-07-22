@@ -20,8 +20,8 @@ variables:
 
   # Kubernetes Namespace
   k8sNamespace: 'ocr'
-  k8sNamespaceForPR: 'ocr-pr'
-  # k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
+  # k8sNamespaceForPR: 'ocr-pr'
+  k8sNamespaceForPR: 'ocr-pr-$(System.PullRequest.PullRequestId)'
   imagePullSecret: 'akirainaks-acr-auth'
 
   # Agent VM image name
@@ -29,7 +29,7 @@ variables:
 
 stages:
 - stage: Build
-  displayName: 'Build stage'
+  displayName: 'Build Container'
   jobs:  
   - job: Build
     displayName: 'Build Docker Container'
@@ -57,7 +57,6 @@ stages:
   jobs:
   - deployment: Deploy
     displayName: 'Deploy to AKS'
-    # condition: and(succeeded(), not(startsWith(variables['Build.SourceBranch'], 'refs/pull/')))
     pool:
       vmImage: $(vmImageName)
     environment: 'chack411WebAppOCR2.$(k8sNamespace)'
@@ -65,33 +64,9 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: KubernetesManifest@0
-            displayName: 'Create imagePullSecret'
-            inputs:
-              action: createSecret
-              namespace: $(k8sNamespace)
-              secretName: $(imagePullSecret)
-              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
-          - task: KubernetesManifest@0
-            displayName: 'Create secret'
-            inputs: 
-              action: createSecret
-              namespace: $(k8sNamespace)
-              secretType: generic
-              secretName: cogapi-secret
-              secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
-          - task: KubernetesManifest@0
-            displayName: 'Deploy to Kubernetes cluster'
-            inputs:
-              action: deploy
-              namespace: $(k8sNamespace)
-              manifests: |
-                $(Pipeline.Workspace)/manifests/deployment.yml
-                $(Pipeline.Workspace)/manifests/service.yml
-              imagePullSecrets: |
-                $(imagePullSecret)
-              containers: |
-                $(containerRegistry)/$(imageRepository):$(tag)
+          - template: kubernetes-tasks.yml
+            parameters:
+              k8sNamespace: $(k8sNamespace)
 
 - stage: Deploy_Production
   displayName: 'Deploy for Production'
@@ -117,7 +92,6 @@ stages:
   jobs:
   - deployment: DeployPullRequest
     displayName: 'Deploy for Pull request'
-    # condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/pull/'))
     pool:
       vmImage: $(vmImageName)
     environment: 'chack411WebAppOCR2.$(k8sNamespaceForPR)'
@@ -126,39 +100,17 @@ stages:
         deploy:
           steps:
           - reviewApp: $(k8sNamespace)
+
           - task: Kubernetes@1
             displayName: 'Create a new namespace for the pull request'
             inputs:
               command: apply
               useConfigurationFile: true
               inline: '{ "kind": "Namespace", "apiVersion": "v1", "metadata": { "name": "$(k8sNamespaceForPR)" }}'
-          - task: KubernetesManifest@0
-            displayName: 'Create imagePullSecret'
-            inputs:
-              action: createSecret
-              namespace: $(k8sNamespaceForPR)
-              secretName: $(imagePullSecret)
-              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
-          - task: KubernetesManifest@0
-            displayName: 'Create secret'
-            inputs: 
-              action: createSecret
-              namespace: $(k8sNamespaceForPR)
-              secretType: generic
-              secretName: cogapi-secret
-              secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
-          - task: KubernetesManifest@0
-            displayName: 'Deploy to the new namespace in the Kubernetes cluster'
-            inputs:
-              action: deploy
-              namespace: $(k8sNamespaceForPR)
-              manifests: |
-                $(Pipeline.Workspace)/manifests/deployment.yml
-                $(Pipeline.Workspace)/manifests/service.yml
-              imagePullSecrets: |
-                $(imagePullSecret)
-              containers: |
-                $(containerRegistry)/$(imageRepository):$(tag)
+
+          - template: kubernetes-tasks.yml
+            parameters:
+              k8sNamespace: $(k8sNamespaceForPR)
           
           - task: Kubernetes@1
             name: get
