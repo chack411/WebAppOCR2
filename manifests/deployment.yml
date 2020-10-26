@@ -39,3 +39,8 @@ spec:
             secretKeyRef:
               name: cogapi-secret
               key: Vision_API_Subscription_Key
+        - name: APPINSIGHTS_INSTRUMENTATIONKEY
+          valueFrom:
+            secretKeyRef:
+              name: cogapi-secret
+              key: APPINSIGHTS_INSTRUMENTATIONKEY

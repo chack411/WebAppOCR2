@@ -18,7 +18,7 @@ steps:
     namespace: ${{ parameters.k8sNamespace }}
     secretType: generic
     secretName: cogapi-secret
-    secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key)
+    secretArguments: --from-literal=Vision_API_Subscription_Key=$(Vision_API_Key) --from-literal=Noodle_Prediction_Key=$(Noodle_Prediction_Key) --from-literal=APPINSIGHTS_INSTRUMENTATIONKEY=$(APPINSIGHTS_INSTRUMENTATIONKEY)
 - task: KubernetesManifest@0
   displayName: 'Deploy to Kubernetes cluster'
   inputs:
