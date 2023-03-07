@@ -12,10 +12,6 @@ namespace ChackLib
 {
     public class OcrLib
     {
-        // Demo for GitHub Secret Scanning
-        private string BLOB_ACCOUNT_NAME = "chackpythonfuncstoeea2ba";
-        private string BLOB_KEY = "vxcEPUiBIT7Y49VIy44PUWLnlJFDroSC/yVAMZNE/TUQxwCrzajzwAFEUzg0Aoz7jSJzg76kRi24+AStUa1YMw==";
-
         public static async Task<string> DoOcr(Uri imageUrl)
         {
             using (var client = new HttpClient())
